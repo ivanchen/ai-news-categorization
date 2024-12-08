@@ -1,0 +1,16 @@
+model:
+  name: "indobert-base-model"
+  confidence_threshold: 0.7
+
+preprocessing:
+  remove_special_chars: true
+  lowercase: true
+  remove_numbers: true
+
+processing:
+  batch_size: 32
+  cache_enabled: true
+
+postprocessing:
+  output_format: "json"
+  include_metadata: true
