@@ -5,6 +5,11 @@ from processing.classifier import Classifier
 from processing.category_selector import CategorySelector
 from preprocessing.news_extractor import NewsExtractor
 from preprocessing.text_cleaner import TextCleaner
+import time
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 # Download required NLTK data
 try:
@@ -12,11 +17,54 @@ try:
 except LookupError:
     nltk.download('punkt')
 
+def fetch_with_selenium(url):
+    """Fetch content using Selenium for JavaScript-heavy sites"""
+    options = Options()
+    options.add_argument('--headless')  # Run in headless mode
+    options.add_argument('--disable-gpu')
+    
+    driver = webdriver.Chrome(options=options)
+    try:
+        driver.get(url)
+        # Wait for content to load
+        time.sleep(3)  # Simple wait, or use WebDriverWait for specific elements
+        return driver.page_source
+    finally:
+        driver.quit()
+
 def extract_text_from_url(url):
     """Extract main text content from a URL using NewsExtractor"""
     try:
         extractor = NewsExtractor()
-        html = extractor.fetch(url)
+        
+        # Add headers to mimic a real browser
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+        }
+        
+        # Add retry mechanism with delay
+        max_retries = 3
+        retry_delay = 2  # seconds
+        
+        for attempt in range(max_retries):
+            try:
+                response = requests.get(url, headers=headers)
+                response.raise_for_status()
+                html = response.text
+                if html:
+                    break
+                time.sleep(retry_delay)
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise e
+                time.sleep(retry_delay)
+        
+        # Verify we have content
+        if not html or len(html.strip()) < 100:  # Arbitrary minimum length
+            raise ValueError("Retrieved content appears to be empty or too short")
+            
         content = extractor.extract_content(html)
         print("content: ")
         print(content)
